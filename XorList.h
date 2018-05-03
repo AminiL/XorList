@@ -17,7 +17,7 @@ public:
 	template < typename U >
 	explicit Node(U&& data, Node* left = nullptr, Node* right = nullptr) :
 		XOR_(reinterpret_cast <uintptr_t> (left) ^ reinterpret_cast <uintptr_t> (right)),
-		data_(data)
+		data_(std::forward < U >(data))
 	{}
 	explicit Node(const Node& v) :
 		data_(v.data_),
