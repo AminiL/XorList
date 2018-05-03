@@ -14,11 +14,8 @@ private:
 		return reinterpret_cast <Node*>(value);
 	}
 public:
-	explicit Node(const T& data, Node* left = nullptr, Node* right = nullptr) : 
-		XOR_(reinterpret_cast <uintptr_t> (left) ^ reinterpret_cast <uintptr_t> (right)),
-		data_(data)
-	{}
-	explicit Node(T&& data, Node* left = nullptr, Node* right = nullptr) :
+	template < typename U >
+	explicit Node(U&& data, Node* left = nullptr, Node* right = nullptr) :
 		XOR_(reinterpret_cast <uintptr_t> (left) ^ reinterpret_cast <uintptr_t> (right)),
 		data_(data)
 	{}
