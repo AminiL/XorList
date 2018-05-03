@@ -7,8 +7,14 @@ class Node {
 private:
 	T data_;
 	uintptr_t XOR_;
+	Node *get_neighbor(Node *other_neighbor) {
+		uintptr_t value = (reinterpret_cast <uintptr_t> (other_neighbor) ^ XOR_);
+		if (value == 0)
+			return nullptr;
+		return reinterpret_cast <Node*>(value);
+	}
 public:
-	explicit Node(const T& data, Node* left = nullptr, Node* right = nullptr) :
+	explicit Node(const T& data, Node* left = nullptr, Node* right = nullptr) : 
 		XOR_(reinterpret_cast <uintptr_t> (left) ^ reinterpret_cast <uintptr_t> (right)),
 		data_(data)
 	{}
@@ -20,27 +26,26 @@ public:
 		data_(v.data_),
 		XOR_(v.XOR_)
 	{}
+
 	void upd_XOR(Node* prev, Node* now) {
 		XOR_ ^= reinterpret_cast <uintptr_t> (prev) ^ reinterpret_cast <uintptr_t> (now);
 	}
+
 	uintptr_t get_XOR() {
 		return XOR_;
 	}
+
 	T& data() {
 		return data_;
 	}
+
 	Node* get_right(Node *left) {
-		uintptr_t value = (reinterpret_cast <uintptr_t> (left) ^ XOR_);
-		if (value == 0)
-			return nullptr;
-		return reinterpret_cast <Node*>(value);
+		return get_neighbor(left);
 	}
 	Node* get_left(Node *right) {
-		uintptr_t value = (reinterpret_cast <uintptr_t> (right) ^ XOR_);
-		if (value == 0)
-			return nullptr;
-		return reinterpret_cast <Node*> (value);
+		return get_neighbor(right);
 	}
+
 	~Node() {}
 };
 
@@ -112,113 +117,38 @@ private:
 			tmp = new_tmp;
 		}
 		--cnt_;
-
 	}
 public:
-	explicit XorList(const Allocator& alloc = Allocator()) :
-		first_(nullptr),
-		last_(nullptr),
-		cnt_(0),
-		node_alloc_(alloc)
-	{}
-
-	template < typename U >
-	void push_back(U&& value) {
-		push(std::forward < U > (value), true);
-	}
-	template < typename U >
-	void push_front(U&& value) {
-		push(std::forward < U > (value), false);
-	}
-
-	T front() {
-		return first_->data();
-	}
-	T back() {
-		return last_->data();
-	}
-
-	void pop_back() {
-		pop(true);
-	}
-	void pop_front() {
-		pop(false);
-	}
-
-	size_t size() {
-		return cnt_;
-	}
-	void clear() {
-		while (cnt_ > 0)
-			pop_back();
-	}
-	bool empty() {
-		return cnt_ == 0;
-	}
-	XorList(std::size_t count, const T& value = T(), const Allocator& alloc = Allocator()) : XorList(alloc)
-	{
-		while (count--) {
-			push_back(value);
-		}
-	}
-	XorList(const XorList& other) : XorList(other.node_alloc_)
-	{
-		construct_from_lvalue(other);
-	}
-	XorList(XorList&& other) : XorList(other.node_alloc_)
-	{
-		constructor_from_rvalue(std::move(other));
-	}
-
-	~XorList() {
-		while (cnt_ > 0)
-			pop_back();
-	}
-
-	XorList &operator= (const XorList& other) {
-		clear();
-		node_alloc_ = other.node_alloc_;
-		construct_from_lvalue(other);
-		return *this;
-	}
-	XorList &operator= (XorList&& other) {
-		clear();
-		node_alloc_ = other.node_alloc_;
-		constructor_from_rvalue(std::move(other));
-		return *this;
-	}
-
-	class iterator : std::iterator <std::bidirectional_iterator_tag, T> {
+	class iterator : public std::iterator <std::bidirectional_iterator_tag, T> {
 	protected:
-		XorList *parent_ = nullptr;
 		Node < T > *left_ = nullptr;
 		Node < T > *now_ = nullptr;
 	public:
-		explicit iterator(Node < T > *v, Node < T > *left = nullptr, XorList *parent = nullptr) :
+		explicit iterator(Node < T > *v, Node < T > *left = nullptr) :
 			left_(left),
-			now_(v),
-			parent_(parent)
+			now_(v)
 		{}
 		explicit iterator() :
 			left_(nullptr),
-			now_(nullptr),
-			parent_(nullptr)
+			now_(nullptr)
 		{}
 		iterator(const iterator &it) :
-			iterator(it.now_, it.left_, it.parent_)
+			iterator(it.now_, it.left_)
 		{}
+
 		iterator& operator = (const iterator& it) {
 			now_ = it.now_;
 			left_ = it.left_;
-			parent_ = it.parent_;
 			return (*this);
 		}
+
 		bool operator == (const iterator& it) const {
-			return now_ == it.now_ && parent_ == it.parent_ && left_ == it.left_;
+			return now_ == it.now_;
 		}
 		bool operator != (const iterator& it) const {
 			return !((*this) == it);
 		}
+
 		iterator& operator ++ () {
 			Node < T > *prev_now = now_;
 			now_ = now_->get_right(left_);
@@ -244,34 +174,36 @@ public:
 			--(*this);
 			return ret;
 		}
+
 		T& operator * () {
 			return now_->data();
 		}
+
 		Node < T > *get_Node() {
 			return now_;
 		}
 		Node < T > *get_left_Node() {
 			return left_;
 		}
-		XorList *get_parent() {
-			return parent_;
-		}
+
 		explicit operator bool() const {
 			return (now_ ? true : false);
 		}
+
 		~iterator() {}
 	};
-	
-	class reverse_iterator :  public iterator{
+
+	class reverse_iterator : public iterator {
 	public:
-		explicit reverse_iterator(Node < T > *v, Node < T > *left = nullptr, XorList *parent = nullptr) : 
-			iterator(v, left, parent)
+		explicit reverse_iterator(Node < T > *v, Node < T > *left = nullptr) :
+			iterator(v, left)
 		{}
 		explicit reverse_iterator() : iterator()
 		{}
 		reverse_iterator(const reverse_iterator &it) :
-			reverse_iterator(it.now_, it.left_, it.parent_)
+			reverse_iterator(it.now_, it.left_)
 		{}
+
 		reverse_iterator& operator -- () {
 			iterator::operator++();
 			return (*this);
@@ -291,23 +223,115 @@ public:
 			return ret;
 		}
 	};
+
+	typedef T value_type;
+	typedef T* pointer;
+	typedef const T* const_pointer;
+	typedef T& reference;
+	typedef const T& const_reference;
+	typedef Allocator allocator_type;
+	typedef std::size_t size_type;
+	typedef const iterator const_iterator;
+	typedef const reverse_iterator const_reverse_iterator;
+
+	explicit XorList(const Allocator& alloc = Allocator()) :
+		first_(nullptr),
+		last_(nullptr),
+		cnt_(0),
+		node_alloc_(alloc)
+	{}
+
+	template < typename U >
+	void push_back(U&& value) {
+		push(std::forward < U > (value), true);
+	}
+	template < typename U >
+	void push_front(U&& value) {
+		push(std::forward < U > (value), false);
+	}
+
+	T& front() {
+		return first_->data();
+	}
+	const T& front() const {
+		return first_->data();
+	}
+	T& back() {
+		return last_->data();
+	}
+	const T& back() const {
+		return const last_->data();
+	}
+
+	void pop_back() {
+		pop(true);
+	}
+	void pop_front() {
+		pop(false);
+	}
+
+	size_t size() const {
+		return cnt_;
+	}
+
+	void clear() {
+		while (cnt_ > 0)
+			pop_back();
+	}
+
+	bool empty() const {
+		return cnt_ == 0;
+	}
+
+	XorList(std::size_t count, const T& value = T(), const Allocator& alloc = Allocator()) : XorList(alloc)
+	{
+		while (count--) {
+			push_back(value);
+		}
+	}
+	XorList(const XorList& other) : XorList(other.node_alloc_)
+	{
+		construct_from_lvalue(other);
+	}
+	XorList(XorList&& other) : XorList(other.node_alloc_)
+	{
+		constructor_from_rvalue(std::move(other));
+	}
 	
+	~XorList() {
+		while (cnt_ > 0)
+			pop_back();
+	}
+
+	XorList &operator= (const XorList& other) {
+		clear();
+		node_alloc_ = other.node_alloc_;
+		construct_from_lvalue(other);
+		return *this;
+	}
+	XorList &operator= (XorList&& other) {
+		clear();
+		node_alloc_ = other.node_alloc_;
+		constructor_from_rvalue(std::move(other));
+		return *this;
+	}
+
 	iterator begin() {
-		return iterator(first_, nullptr, this);
+		return iterator(first_, nullptr);
 	}
 	iterator end() {
-		return iterator(nullptr, last_, this);
+		return iterator(nullptr, last_);
 	}
+
 	reverse_iterator rend() {
-		return reverse_iterator(nullptr, nullptr, this);
+		return reverse_iterator(nullptr, nullptr);
 	}
 	reverse_iterator rbegin() {
-		return reverse_iterator(last_, (last_ == nullptr ? nullptr : last_->get_left(nullptr)), this);
+		return reverse_iterator(last_, (last_ == nullptr ? nullptr : last_->get_left(nullptr)));
 	}
 
 	template < typename U >
 	iterator insert_before(iterator it, U&& value) {
-		assert(it.get_parent() == this);
 		if (it == begin()) {
 			push_front(std::forward < U >(value));
 			return begin();
@@ -324,8 +348,9 @@ public:
 		v->upd_XOR(nullptr, now);
 		v->upd_XOR(nullptr, left);
 		++cnt_;
-		return iterator(v, left, this);
+		return iterator(v, left);
 	}
+
 	template < typename U >
 	iterator insert_after(iterator it, U&& value) {
 		assert(it != this->end());
@@ -334,7 +359,6 @@ public:
 	}
 
 	void erase(iterator it) {
-		assert(it.get_parent() == this);
 		assert(it);
 		if (it == begin()) {
 			pop_front();
@@ -352,5 +376,6 @@ public:
 		right.get_Node()->upd_XOR(it.get_Node(), left.get_Node());
 		std::allocator_traits <node_alloc_t>::deallocate(node_alloc_, it.get_Node(), 1);
 	}
+
 };
 //
