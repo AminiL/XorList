@@ -257,7 +257,7 @@ public:
 		return last_->data();
 	}
 	const T& back() const {
-		return const last_->data();
+		return last_->data();
 	}
 
 	void pop_back() {
