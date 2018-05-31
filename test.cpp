@@ -6,8 +6,6 @@
 #include <iterator>
 #include <set>
 #include <random>
-#include <iostream>
-#include <list>
 #include <chrono>
 #include <algorithm>
 template<class Callable, class... Args>
